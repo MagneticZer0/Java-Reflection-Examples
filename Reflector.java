@@ -4,7 +4,7 @@ import sun.misc.Unsafe;
 import java.util.Arrays;
 
 public class Reflector {
-    public static void main(String[] args) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, NoSuchFieldException {
+    public static void main(String[] args) throws NoSuchMethodException, InstantiationException, IllegalAccessException, InvocationTargetException, NoSuchFieldException, ClassNotFoundException {
         Constructor<TestCase> testCaseConstructor = TestCase.class.getDeclaredConstructor(String.class); // Throws NoSuchMethodException
         testCaseConstructor.setAccessible(true); // This makes it ignore private/public/protected flags
         TestCase testCase = testCaseConstructor.newInstance("Super secret name"); // Just instantiated even though it is private
@@ -78,6 +78,20 @@ public class Reflector {
 
         System.out.println(String.format("false is %s", false)); // Because of autoboxing behavior this prints false is true
 
+        // Integers are funny because they use a cache for various things
+        Integer[] newCache = new Integer[256]; // Let's create a new cache
+        Arrays.fill(newCache, 420); // And fill it with what we want
+        Field cache = Class.forName("java.lang.Integer$IntegerCache").getDeclaredField("cache"); // Let's get the Integer cache field
+        cache.setAccessible(true);
+        
+        // Again, next 3 negate finalness
+        modifiersField = Field.class.getDeclaredField("modifiers");
+        modifiersField.setAccessible(true);
+        modifiersField.setInt(cache, cache.getModifiers() & ~Modifier.FINAL);
+        
+        cache.set(null, newCache); // Let's set the value
+        System.out.printf("6 * 9 = %d", 6*9); // You would expect this to return 54, although by now you know better, it'll return 420.
+        
         /**
          * Lastly what if a programmer purposely makes the constructor throw an Exception?
          * It's hard to instantiate that object.. But Java's sun.music.Unsafe allows this to happen
